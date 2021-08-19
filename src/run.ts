@@ -21,7 +21,7 @@ export interface RunOptions {
     watch: boolean;
 }
 
-export async function run(src: string, options: RunOptions): Promise<void> {
+export async function run(input: string, options: RunOptions): Promise<void> {
     const configFile =
         (options.config && path.resolve('.', options.config)) || (await findConfig());
 
@@ -77,7 +77,7 @@ export async function run(src: string, options: RunOptions): Promise<void> {
 
     const outputFile = path.resolve('.', options.output);
 
-    for await (const changes of watch(configFile ? [src, configFile] : [src], options.watch)) {
+    for await (const changes of watch(configFile ? [input, configFile] : [input], options.watch)) {
         runCount++;
         console.info(
             kleur.cyan(
@@ -90,7 +90,7 @@ export async function run(src: string, options: RunOptions): Promise<void> {
         const endTime = timeSpan();
         const pendingDetections: Promise<unknown>[] = [];
         let hasChanged = false;
-        let srcContent = '';
+        let inputContent = '';
         for (const [file, stats] of changes.entries()) {
             if (file == configFile) {
                 if (runCount) {
@@ -108,7 +108,7 @@ export async function run(src: string, options: RunOptions): Promise<void> {
                     pendingDetections.push(
                         extractContentAndRulesFromFile(file).then(({ content, rules }) => {
                             watched.set(file, stats);
-                            srcContent = content;
+                            inputContent = content;
                             candidatesByFile.set(file, rules);
                             if (!hasChanged) {
                                 for (let index = rules.length; index--; ) {
@@ -167,7 +167,7 @@ export async function run(src: string, options: RunOptions): Promise<void> {
             await fs.writeFile(
                 outputFile,
                 minify(
-                    srcContent.replace(
+                    inputContent.replace(
                         '<style id="__twind"></style>',
                         `<style>${sheet.target.join('')}</style>`,
                     ),
