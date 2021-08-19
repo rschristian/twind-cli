@@ -22,8 +22,17 @@ export interface RunOptions {
 }
 
 export async function run(input: string, options: RunOptions): Promise<void> {
+    // Check options
+    if (!input.endsWith('.html') || !options.output.endsWith('.html')) {
+        console.error(kleur.red('Error: Both input and output needs to be HTML files. Nothing else is compatible.'))
+        return;
+    }
+
     const configFile =
         (options.config && path.resolve('.', options.config)) || (await findConfig());
+    if (!configFile) {
+        console.warn(kleur.yellow('No config file provided or found automatically, using default'));
+    }
 
     // Track unknown rules
     const unknownRules = new Set<string>();
