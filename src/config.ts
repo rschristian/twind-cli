@@ -22,7 +22,7 @@ async function loadFile<T>(file: string): Promise<T> {
     const moduleId = path.resolve(cwd, file);
 
     try {
-        return (await import(moduleId)) as T;
+        return (await import(`${moduleId}?update=${Date.now()}`)).default as T;
     } catch (error) {
         console.error(
             kleur.red(
@@ -37,5 +37,5 @@ async function loadFile<T>(file: string): Promise<T> {
 type TConfiguration = Configuration & { purge?: string[] | { content?: string[] } };
 
 export async function loadConfig(configFile: string): Promise<TConfiguration> {
-    return (await loadFile<{ default: Configuration } & Configuration>(configFile)).default;
+    return await loadFile<{ default: Configuration } & Configuration>(configFile);
 }

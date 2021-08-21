@@ -86,7 +86,8 @@ export async function run(input: string, options: RunOptions): Promise<void> {
 
     const outputFile = path.resolve('.', options.output);
 
-    for await (const changes of watch(configFile ? [input, configFile] : [input], options.watch)) {
+    let inputContent = '';
+    for await (const changes of watch(configFile ? [configFile, input] : [input], options.watch)) {
         runCount++;
         console.info(
             kleur.cyan(
@@ -99,7 +100,6 @@ export async function run(input: string, options: RunOptions): Promise<void> {
         const endTime = timeSpan();
         const pendingDetections: Promise<unknown>[] = [];
         let hasChanged = false;
-        let inputContent = '';
         for (const [file, stats] of changes.entries()) {
             if (file == configFile) {
                 if (runCount) {
@@ -157,46 +157,43 @@ export async function run(input: string, options: RunOptions): Promise<void> {
             ),
         );
 
-        if (hasChanged || !equals(lastCandidates, nextCandidates)) {
-            const twEndTime = timeSpan();
-            sheet.reset();
-            tw([...nextCandidates].filter(ignoreUnknownRules).sort().join(' '));
-            console.debug(
-                kleur.gray(
-                    `Generated ${kleur.bold(sheet.target.length)} CSS rule${
-                        sheet.target.length == 1 ? '' : 's'
-                    } in ${kleur.bold(twEndTime.rounded() + ' ms')}`,
-                ),
-            );
+        const twEndTime = timeSpan();
+        sheet.reset();
+        tw([...nextCandidates].filter(ignoreUnknownRules).sort().join(' '));
+        console.debug(
+            kleur.gray(
+                `Generated ${kleur.bold(sheet.target.length)} CSS rule${
+                    sheet.target.length == 1 ? '' : 's'
+                } in ${kleur.bold(twEndTime.rounded() + ' ms')}`,
+            ),
+        );
 
-            lastCandidates = nextCandidates;
+        lastCandidates = nextCandidates;
 
-            // Write to file
-            await fs.mkdir(path.dirname(outputFile), { recursive: true });
-            await fs.writeFile(
-                outputFile,
-                minify(
-                    inputContent.replace(
-                        '<style id="__twind"></style>',
-                        `<style>${sheet.target.join('')}</style>`,
-                    ),
-                    {
-                        minifyJS: true,
-                        minifyCSS: true,
-                        collapseWhitespace: true,
-                    },
+        // Write to file
+        await fs.mkdir(path.dirname(outputFile), { recursive: true });
+        await fs.writeFile(
+            outputFile,
+            minify(
+                inputContent.replace(
+                    '<style id="__twind"></style>',
+                    `<style>${sheet.target.join('')}</style>`,
                 ),
-            );
-            console.info(
-                kleur.green(
-                    `Finished ${kleur.bold(
-                        path.relative(process.cwd(), outputFile),
-                    )} in ${kleur.bold(endTime.rounded() + ' ms')}`,
-                ),
-            );
-        } else {
-            console.info(kleur.green().dim(`No new classes detected - skipped generating CSS`));
-        }
+                {
+                    minifyJS: true,
+                    minifyCSS: true,
+                    collapseWhitespace: true,
+                },
+            ),
+        );
+        console.info(
+            kleur.green(
+                `Finished ${kleur.bold(
+                    path.relative(process.cwd(), outputFile),
+                )} in ${kleur.bold(endTime.rounded() + ' ms')}`,
+            ),
+        );
+
 
         if (options.watch) {
             console.info('\n' + kleur.dim('Waiting for file changes...'));
@@ -206,18 +203,4 @@ export async function run(input: string, options: RunOptions): Promise<void> {
     if (runCount < 0) {
         console.error(kleur.yellow(`No matching files found...`));
     }
-}
-
-function equals(a: Set<unknown>, b: Set<unknown>) {
-    return a.size === b.size && every(b, (value: unknown) => a.has(value));
-}
-
-function every<T>(as: Iterable<T>, predicate: (value: T) => unknown): boolean {
-    for (const a of as) {
-        if (!predicate(a)) {
-            return false;
-        }
-    }
-
-    return true;
 }
